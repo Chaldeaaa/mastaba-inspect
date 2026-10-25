@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="MastabaInspect.csproj" />
+  <Project Path="MastabaInspect.Knives.Tests.csproj" />
+  <Project Path="MastabaInspect.Firearms.Tests.csproj" />
+</Solution>

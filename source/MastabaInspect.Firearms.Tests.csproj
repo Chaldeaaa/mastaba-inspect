@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>MastabaInspect.Firearms.Tests</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="src\Firearms\Motion.cs" />
+    <Compile Include="src\Firearms\PoseKey.cs" />
+    <Compile Include="src\Firearms\ArmPose.cs" />
+    <Compile Include="src\Firearms\ViewFrame.cs" />
+    <Compile Include="src\FingerAlignment.cs" />
+    <Compile Include="tests\RevolverMotionTests.cs" />
+    <None Include="tests\R66Bounds.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

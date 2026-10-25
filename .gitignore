@@ -1,0 +1,8 @@
+dist/
+source/bin/
+source/obj/
+.vs/
+.idea/
+*.user
+*.suo
+*.pdb

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>MastabaInspect.Knives.Tests</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="src\Knives\InspectMotion.cs" />
+    <Compile Include="src\Knives\InspectSession.cs" />
+    <Compile Include="src\Knives\KnifeProfile.cs" />
+    <Compile Include="src\Knives\ArmPose.cs" />
+    <Compile Include="src\Knives\FingerPose.cs" />
+    <Compile Include="src\Knives\MotionSample.cs" />
+    <Compile Include="tests\KnifeMotionTests.cs" />
+  </ItemGroup>
+</Project>

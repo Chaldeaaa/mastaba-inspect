@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>MastabaInspect</AssemblyName>
+    <OutputType>Library</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <BepInExDir>$(APPDATA)\com.kesomannen.gale\gtfo\profiles\Default\BepInEx</BepInExDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="src\*.cs" />
+    <Compile Include="src\Knives\*.cs" />
+    <Compile Include="src\Firearms\*.cs" />
+    <Reference Include="$(BepInExDir)\core\*.dll" />
+    <Reference Include="$(BepInExDir)\interop\*.dll" />
+  </ItemGroup>
+</Project>

@@ -1,4 +1,4 @@
-# Mastaba Inspect
+# Inspect
 
 [English](README.en.md)
 

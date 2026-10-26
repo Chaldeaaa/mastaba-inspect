@@ -5,12 +5,11 @@ using MastabaInspect.Firearms;
 namespace MastabaInspect;
 internal static class FingerAlignment
 {
-    internal static Quaternion[] Straighten(Vector3[] segments, Quaternion[] rotations, Vector3 direction, float weight)
+    internal static void Straighten(ReadOnlySpan<Vector3> segments, ReadOnlySpan<Quaternion> rotations, Vector3 direction, float weight, Span<Quaternion> result)
     {
         direction = Vector3.Normalize(direction);
         Quaternion parentDelta = Quaternion.Identity;
-        Quaternion[] result = new Quaternion[rotations.Length];
-        for (int index = 0; index < result.Length; index++)
+        for (int index = 0; index < rotations.Length; index++)
         {
             Vector3 from = Vector3.Normalize(Vector3.Transform(segments[index], parentDelta));
             Quaternion delta = Motion.FromTo(from, direction);
@@ -18,11 +17,9 @@ internal static class FingerAlignment
             parentDelta = Quaternion.Normalize(delta * parentDelta);
             result[index] = Quaternion.Normalize(parentDelta * rotations[index]);
         }
-
-        return result;
     }
 
-    internal static Quaternion[] ThumbContact(Vector3[] points, Quaternion[] rotations, Vector3 target, float weight)
+    internal static void ThumbContact(ReadOnlySpan<Vector3> points, ReadOnlySpan<Quaternion> rotations, Vector3 target, float weight, Span<Quaternion> result)
     {
         Vector3 proximal = points[1] - points[0];
         Vector3 distal = points[3] - points[1];
@@ -53,12 +50,9 @@ internal static class FingerAlignment
         root = Quaternion.Slerp(Quaternion.Identity, root, weight);
         bend = Quaternion.Slerp(Quaternion.Identity, bend, weight);
         Quaternion distalRotation = Quaternion.Normalize(root * bend);
-        return new[]
-        {
-            Quaternion.Normalize(root * rotations[0]),
-            Quaternion.Normalize(distalRotation * rotations[1]),
-            Quaternion.Normalize(distalRotation * rotations[2])
-        };
+        result[0] = Quaternion.Normalize(root * rotations[0]);
+        result[1] = Quaternion.Normalize(distalRotation * rotations[1]);
+        result[2] = Quaternion.Normalize(distalRotation * rotations[2]);
     }
 
 #region 常量

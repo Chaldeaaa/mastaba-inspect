@@ -28,11 +28,11 @@ internal sealed class FingerChain
         tipOffset = bones[1].InverseTransformPoint(bones[2].position) * .65f;
     }
 
-    internal static FingerChain Find(Transform hand, string name, int kind)
+    internal static FingerChain Find(Transform hand, IEnumerable<Transform> bones, string name, int kind)
     {
         Transform first = null;
         int shortestDepth = int.MaxValue;
-        foreach (var bone in hand.GetComponentsInChildren<Transform>())
+        foreach (var bone in bones)
         {
             if (!bone || bone.childCount == 0 || !bone.name.EndsWith("1", StringComparison.Ordinal) || bone.name.IndexOf(name, StringComparison.OrdinalIgnoreCase) < 0)
                 continue;
@@ -54,18 +54,16 @@ internal sealed class FingerChain
         if (!first)
             return null;
         string prefix = first.name[..^1];
-        var chain = new List<Transform>
+        var chain = new Transform[3];
+        chain[0] = first;
+        for (int joint = 1; joint < chain.Length; joint++)
         {
-            first
-        };
-        while (chain.Count < 3)
-        {
-            var current = chain[^1];
+            var current = chain[joint - 1];
             Transform next = null;
             for (int i = 0; i < current.childCount; i++)
             {
                 var child = current.GetChild(i);
-                if (string.Equals(child.name, prefix + (chain.Count + 1), StringComparison.OrdinalIgnoreCase) && (child.position - current.position).sqrMagnitude > 1e-10f)
+                if (string.Equals(child.name, prefix + (joint + 1), StringComparison.OrdinalIgnoreCase) && (child.position - current.position).sqrMagnitude > 1e-10f)
                 {
                     next = child;
                     break;
@@ -74,7 +72,7 @@ internal sealed class FingerChain
 
             if (!next)
                 return null;
-            chain.Add(next);
+            chain[joint] = next;
         }
 
         Transform end = null;
@@ -88,7 +86,7 @@ internal sealed class FingerChain
             }
         }
 
-        return new FingerChain(chain.ToArray(), end, kind);
+        return new FingerChain(chain, end, kind);
     }
 
     internal void Capture()
@@ -124,8 +122,8 @@ internal sealed class FingerChain
 
     internal void Straighten(Vector3 direction, float weight)
     {
-        NVector[] segments = new NVector[3];
-        NQuaternion[] rotations = new NQuaternion[3];
+        Span<NVector> segments = stackalloc NVector[3];
+        Span<NQuaternion> rotations = stackalloc NQuaternion[3];
         for (int index = 0; index < 3; index++)
         {
             Vector3 end;
@@ -148,7 +146,8 @@ internal sealed class FingerChain
             rotations[index] = new NQuaternion(rotation.x, rotation.y, rotation.z, rotation.w);
         }
 
-        NQuaternion[] aligned = FingerAlignment.Straighten(segments, rotations, new NVector(direction.x, direction.y, direction.z), weight);
+        Span<NQuaternion> aligned = stackalloc NQuaternion[3];
+        FingerAlignment.Straighten(segments, rotations, new NVector(direction.x, direction.y, direction.z), weight, aligned);
         for (int index = 0; index < 3; index++)
         {
             NQuaternion rotation = aligned[index];
@@ -158,8 +157,8 @@ internal sealed class FingerChain
 
     internal void Contact(Vector3 target, float weight)
     {
-        NVector[] points = new NVector[4];
-        NQuaternion[] rotations = new NQuaternion[3];
+        Span<NVector> points = stackalloc NVector[4];
+        Span<NQuaternion> rotations = stackalloc NQuaternion[3];
         for (int index = 0; index < 3; index++)
         {
             Vector3 position = joints[index].position;
@@ -170,7 +169,8 @@ internal sealed class FingerChain
 
         Vector3 endpoint = tip ? tip.position : joints[2].TransformPoint(tipOffset);
         points[3] = new NVector(endpoint.x, endpoint.y, endpoint.z);
-        NQuaternion[] aligned = FingerAlignment.ThumbContact(points, rotations, new NVector(target.x, target.y, target.z), weight);
+        Span<NQuaternion> aligned = stackalloc NQuaternion[3];
+        FingerAlignment.ThumbContact(points, rotations, new NVector(target.x, target.y, target.z), weight, aligned);
         for (int index = 0; index < 3; index++)
         {
             NQuaternion rotation = aligned[index];
@@ -182,8 +182,8 @@ internal sealed class FingerChain
     {
         if (sample.UprightA <= 0)
             return 0;
-        var points = new NVector[4];
-        var rotations = new NQuaternion[3];
+        Span<NVector> points = stackalloc NVector[4];
+        Span<NQuaternion> rotations = stackalloc NQuaternion[3];
         for (int i = 0; i < 3; i++)
         {
             var p = joints[i].position;
@@ -195,7 +195,9 @@ internal sealed class FingerChain
         var endpoint = tip ? tip.position : joints[2].TransformPoint(tipOffset);
         points[3] = new(endpoint.x, endpoint.y, endpoint.z);
         var target = Kind == 0 ? InspectMotion.ThumbTarget(points[3], points[0], pivot, axis, sideAxis, halfWidth, degrees, sample) : InspectMotion.FingerTarget(points[3], pivot, axis, degrees, sample, Kind);
-        var posed = InspectMotion.PoseFinger(points, rotations, target, Kind == 0);
+        Span<NVector> posedPoints = stackalloc NVector[4];
+        Span<NQuaternion> posedRotations = stackalloc NQuaternion[3];
+        var posed = InspectMotion.PoseFinger(points, rotations, target, Kind == 0, posedPoints, posedRotations);
         for (int i = 0; i < 3; i++)
         {
             var q = posed.Rotations[i];

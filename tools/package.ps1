@@ -11,7 +11,7 @@ else {
 }
 $output = Join-Path $root 'dist'
 New-Item -ItemType Directory -Path $output -Force | Out-Null
-$archivePath = Join-Path $output "MastabaInspect-$($manifest.version_number).zip"
+$archivePath = Join-Path $output "Inspect-$($manifest.version_number).zip"
 $archive = [IO.Compression.ZipFile]::Open($archivePath, [IO.Compression.ZipArchiveMode]::Create)
 try {
     [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $dll, 'BepInEx/plugins/MastabaInspect/MastabaInspect.dll') | Out-Null

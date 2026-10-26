@@ -9,6 +9,8 @@ internal static class RevolverMotionTests
 {
     private static void Main()
     {
+        Span<Quaternion> aligned = stackalloc Quaternion[3];
+        Span<Quaternion> thumbAligned = stackalloc Quaternion[3];
         Require(Motion.Sample(0).Weight == 0 && Motion.Sample(0).Release == 0, "Ready start");
         Require(Motion.Sample(Motion.DURATION).Weight == 0 && Motion.Sample(Motion.DURATION).Release == 0, "Ready end");
         Require(Motion.Sample(.28f).Release > .8f && Motion.Sample(.28f).Weight > 0, "Left hand release overlaps presentation approach");
@@ -212,7 +214,7 @@ internal static class RevolverMotionTests
             }
 
             Vector3 direction = Vector3.Normalize(Vector3.Transform(new Vector3(.035f, -.24f, 1), rotation));
-            Quaternion[] aligned = FingerAlignment.Straighten(segments, fingerRotations, direction, sample.Fingers);
+            FingerAlignment.Straighten(segments, fingerRotations, direction, sample.Fingers, aligned);
             for (int joint = 0; joint < 3; joint++)
             {
                 Vector3 moved = Vector3.Transform(segments[joint], aligned[joint]);
@@ -256,7 +258,8 @@ internal static class RevolverMotionTests
                 orientation,
                 orientation
             };
-            Quaternion[] rotations = FingerAlignment.ThumbContact(worldPoints, nativeRotations, origin + Vector3.Transform(contact, orientation), sample.Fingers);
+            FingerAlignment.ThumbContact(worldPoints, nativeRotations, origin + Vector3.Transform(contact, orientation), sample.Fingers, thumbAligned);
+            ReadOnlySpan<Quaternion> rotations = thumbAligned;
             Quaternion rootDelta = Quaternion.Normalize(rotations[0] * Quaternion.Inverse(orientation));
             Quaternion lowerDelta = Quaternion.Normalize(rotations[1] * Quaternion.Inverse(orientation));
             float angle = 2 * MathF.Acos(Math.Clamp(MathF.Abs(rootDelta.W), 0, 1));
@@ -294,12 +297,25 @@ internal static class RevolverMotionTests
 
         )
         {
-            Quaternion[] rotations = FingerAlignment.ThumbContact(thumbPoints, fingerRotations, target, 1);
+            FingerAlignment.ThumbContact(thumbPoints, fingerRotations, target, 1, thumbAligned);
+            ReadOnlySpan<Quaternion> rotations = thumbAligned;
             float rootAngle = 2 * MathF.Acos(Math.Clamp(MathF.Abs(rotations[0].W), 0, 1));
             float hingeAngle = 2 * MathF.Acos(Math.Clamp(MathF.Abs(Quaternion.Dot(rotations[0], rotations[1])), 0, 1));
             Require(float.IsFinite(rootAngle) && rootAngle <= 1.134465f && hingeAngle <= .610866f, "Unreachable contact remains within thumb rotation limits");
         }
 
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        float accumulatedRotation = 0;
+        for (int iteration = 0; iteration < 2048; iteration++)
+        {
+            FingerAlignment.Straighten(segments, fingerRotations, Vector3.UnitZ, 1, aligned);
+            FingerAlignment.ThumbContact(thumbPoints, fingerRotations, contact, 1, thumbAligned);
+            accumulatedRotation += aligned[0].W + thumbAligned[0].W;
+        }
+
+        long fingerSolverAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        Require(fingerSolverAllocatedBytes == 0, "Firearm finger solving allocates no managed memory after warmup");
+        Require(float.IsFinite(accumulatedRotation), "Repeated firearm finger solving remains finite");
         Quaternion forearmTurn = Quaternion.CreateFromAxisAngle(Vector3.Normalize(hands[0] - elbows[0]), MathF.PI * .45f);
         float testTwist = 0;
         ArmPose twisted = Motion.SolveArm(shoulders[0], elbows[0], hands[0], Quaternion.Identity, Quaternion.Identity, Quaternion.Identity, hands[0], forearmTurn, ref testTwist);
@@ -331,6 +347,7 @@ internal static class RevolverMotionTests
             thumbDistalBendPreserved = true,
             thumbContactChecked = true,
             fingerTimingChecked = true,
+            fingerSolverAllocatedBytes,
             maximumVelocityJump,
             stoppedPresentationFrames,
             continuousMotionChecked = true,

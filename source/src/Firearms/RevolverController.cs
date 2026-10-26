@@ -40,6 +40,11 @@ internal sealed class RevolverController
 
     internal void BeforeHolderUpdate(FirstPersonItemHolder current, bool requested)
     {
+        if (!active && !requested)
+        {
+            return;
+        }
+
         if (updateFrame == Time.frameCount)
         {
             return;
@@ -83,8 +88,10 @@ internal sealed class RevolverController
             weapon = candidate;
             rightArm = new ArmBinding(arms.m_rightHandIK);
             leftArm = new ArmBinding(arms.m_leftHandIK);
-            indexFinger = FingerChain.Find(rightArm.HandTransform, "index", 1);
-            thumb = FingerChain.Find(rightArm.HandTransform, "thumb", 0);
+            Transform hand = rightArm.HandTransform;
+            var handBones = hand.GetComponentsInChildren<Transform>();
+            indexFinger = FingerChain.Find(hand, handBones, "index", 1);
+            thumb = FingerChain.Find(hand, handBones, "thumb", 0);
             if (indexFinger == null || thumb == null)
             {
                 log.LogWarning("Inspect skipped: the right-hand finger rig is unavailable.");
@@ -93,24 +100,27 @@ internal sealed class RevolverController
             }
 
             List<Vector3> corners = new();
+            Transform weaponRoot = weapon.transform;
             foreach (MeshFilter filter in weapon.GetComponentsInChildren<MeshFilter>())
             {
                 Renderer renderer = filter.GetComponent<Renderer>();
-                if (!filter.sharedMesh || !filter.gameObject.activeInHierarchy || !renderer || !renderer.enabled)
+                Mesh mesh = filter.sharedMesh;
+                if (!mesh || !filter.gameObject.activeInHierarchy || !renderer || !renderer.enabled)
                 {
                     continue;
                 }
 
-                Bounds bounds = filter.sharedMesh.bounds;
-                if (filter.sharedMesh.name.StartsWith("Stock_Revolver_Hammer_1", StringComparison.Ordinal))
+                Bounds bounds = mesh.bounds;
+                Transform meshTransform = filter.transform;
+                if (mesh.name.StartsWith("Stock_Revolver_Hammer_1", StringComparison.Ordinal))
                 {
-                    hammer = filter.transform;
+                    hammer = meshTransform;
                 }
 
                 for (int corner = 0; corner < 8; corner++)
                 {
                     Vector3 point = bounds.center + Vector3.Scale(bounds.extents, new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
-                    corners.Add(weapon.transform.InverseTransformPoint(filter.transform.TransformPoint(point)));
+                    corners.Add(weaponRoot.InverseTransformPoint(meshTransform.TransformPoint(point)));
                 }
             }
 
@@ -231,7 +241,7 @@ internal sealed class RevolverController
         }
     }
 
-    private static bool Eligible(FirstPersonItemHolder current, out BulletWeapon candidate)
+    private bool Eligible(FirstPersonItemHolder current, out BulletWeapon candidate)
     {
         candidate = null;
         if (!current || !current.m_owner || !current.m_owner.IsLocallyOwned || !current.m_owner.Alive || !current.m_owner.IsEnabled || !current.m_isSetup)
@@ -261,13 +271,23 @@ internal sealed class RevolverController
             return false;
         }
 
-        GearIDRange range = candidate.GearIDRange;
-        if (range.PlayfabItemInstanceId != "OfflineGear_ID_15")
+        if (active)
         {
-            PlayerOfflineGearDataBlock block = PlayerOfflineGearDataBlock.GetBlock(15);
-            if (block == null || string.IsNullOrEmpty(block.GearJSON) || new GearIDRange(block.GearJSON).GetChecksum() != range.GetChecksum())
+            if (candidate != weapon)
             {
                 return false;
+            }
+        }
+        else
+        {
+            GearIDRange range = candidate.GearIDRange;
+            if (range.PlayfabItemInstanceId != "OfflineGear_ID_15")
+            {
+                PlayerOfflineGearDataBlock block = PlayerOfflineGearDataBlock.GetBlock(15);
+                if (block == null || string.IsNullOrEmpty(block.GearJSON) || new GearIDRange(block.GearJSON).GetChecksum() != range.GetChecksum())
+                {
+                    return false;
+                }
             }
         }
 

@@ -1,11 +1,17 @@
+using System;
 using System.Numerics;
 
 namespace MastabaInspect.Knives;
 
-internal readonly struct FingerPose
+internal readonly ref struct FingerPose
 {
-    public readonly Vector3[] Points;
-    public readonly Quaternion[] Rotations;
+    public readonly ReadOnlySpan<Vector3> Points;
+    public readonly ReadOnlySpan<Quaternion> Rotations;
     public readonly float TargetError;
-    public FingerPose(Vector3[] points, Quaternion[] rotations, float targetError) => (Points, Rotations, TargetError) = (points, rotations, targetError);
+    public FingerPose(ReadOnlySpan<Vector3> points, ReadOnlySpan<Quaternion> rotations, float targetError)
+    {
+        Points = points;
+        Rotations = rotations;
+        TargetError = targetError;
+    }
 }

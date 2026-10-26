@@ -243,7 +243,8 @@ internal sealed class KnifeController
         lastLoggedPose = 0;
         rollSign = InspectMotion.LiftRollSign(N(wrist.position - lower.position), N(BladeForward), N(renderCamera.transform.up));
         faceSign = Vector3.Dot(BladeRight, renderCamera.transform.position - bladeHead.position) >= 0 ? 1 : -1;
-        FindThumbAxis();
+        var handBones = hand.GetComponentsInChildren<Transform>();
+        FindThumbAxis(handBones);
         fingers.Clear();
         string[] names =
         {
@@ -255,9 +256,9 @@ internal sealed class KnifeController
         };
         for (int i = 0; i < names.Length; i++)
         {
-            var finger = FingerChain.Find(hand, names[i], i);
+            var finger = FingerChain.Find(hand, handBones, names[i], i);
             if (finger == null && i == 4)
-                finger = FingerChain.Find(hand, "little", i);
+                finger = FingerChain.Find(hand, handBones, "little", i);
             if (finger != null)
                 fingers.Add(finger);
         }
@@ -287,11 +288,11 @@ internal sealed class KnifeController
         return true;
     }
 
-    private void FindThumbAxis()
+    private void FindThumbAxis(IEnumerable<Transform> bones)
     {
         thumbBase = thumbNext = null;
         int shortestDepth = int.MaxValue;
-        foreach (var bone in hand.GetComponentsInChildren<Transform>())
+        foreach (var bone in bones)
         {
             if (!bone || bone.childCount == 0 || bone.name.IndexOf("thumb", StringComparison.OrdinalIgnoreCase) < 0)
                 continue;

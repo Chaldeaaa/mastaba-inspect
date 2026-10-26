@@ -171,16 +171,17 @@ internal static class InspectMotion
         return Vector3.Lerp(tip, sideTarget, release);
     }
 
-    public static FingerPose PoseFinger(Vector3[] nativePoints, Quaternion[] nativeRotations, Vector3 target, bool thumb)
+    public static FingerPose PoseFinger(ReadOnlySpan<Vector3> nativePoints, ReadOnlySpan<Quaternion> nativeRotations, Vector3 target, bool thumb, Span<Vector3> points, Span<Quaternion> rotations)
     {
         int count = nativeRotations.Length;
-        if (count != 3 || nativePoints.Length != count + 1)
+        if (count != 3 || nativePoints.Length != count + 1 || points.Length != count + 1 || rotations.Length != count)
             throw new ArgumentException("A finger requires three joints and one fingertip.");
-        var points = (Vector3[])nativePoints.Clone();
-        var rotations = (Quaternion[])nativeRotations.Clone();
-        var hinges = new Vector3[count];
-        var bend = new float[count];
-        var curl = new float[count];
+        nativePoints.CopyTo(points);
+        nativeRotations.CopyTo(rotations);
+        Span<Vector3> hinges = stackalloc Vector3[3];
+        Span<float> bend = stackalloc float[3];
+        Span<float> curl = stackalloc float[3];
+        curl.Clear();
         for (int i = 1; i < count; i++)
         {
             var incoming = Unit(points[i] - points[i - 1], Vector3.UnitZ);

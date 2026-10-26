@@ -5,7 +5,7 @@ using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
 
 namespace MastabaInspect;
-[BepInPlugin(PLUGIN_ID, "Mastaba Inspect", "0.2.4")]
+[BepInPlugin(PLUGIN_ID, "Inspect", "0.2.5")]
 [BepInProcess("GTFO.exe")]
 public sealed class Plugin : BasePlugin
 {
@@ -24,7 +24,7 @@ public sealed class Plugin : BasePlugin
             throw;
         }
 
-        Log.LogInfo("Mastaba Inspect 0.2.4 loaded; press G with Mastaba R66, Mastaba Fixed Blade or WOX Compact.");
+        Log.LogInfo("Inspect 0.2.5 loaded; press G with Mastaba R66, Mastaba Fixed Blade or WOX Compact.");
     }
 
     public override bool Unload()

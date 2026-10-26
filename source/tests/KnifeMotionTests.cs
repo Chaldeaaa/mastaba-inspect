@@ -6,6 +6,7 @@ using System.Text.Json;
 internal sealed class KnifeMotionTests
 {
     private int assertions;
+    private long fingerSolverAllocatedBytes;
     private void Check(bool ok, string why)
     {
         assertions++;
@@ -32,7 +33,7 @@ internal sealed class KnifeMotionTests
             ThumbTargets();
             Fingers();
             Session();
-            Console.WriteLine(JsonSerializer.Serialize(new { passed = true, assertions, inGameTested = false }));
+            Console.WriteLine(JsonSerializer.Serialize(new { passed = true, assertions, fingerSolverAllocatedBytes, inGameTested = false }));
             return 0;
         }
         catch (Exception e)
@@ -434,13 +435,17 @@ internal sealed class KnifeMotionTests
         };
         var worldQ = Quaternion.CreateFromYawPitchRoll(1.2f, .6f, -.3f);
         var worldOrigin = new Vector3(4, 2, -3);
+        Span<Vector3> solvedPoints = stackalloc Vector3[4];
+        Span<Quaternion> solvedRotations = stackalloc Quaternion[3];
+        Span<Vector3> transformedPoints = stackalloc Vector3[4];
+        Span<Quaternion> transformedRotations = stackalloc Quaternion[3];
         for (int kind = 0; kind < (thumbOnly ? 1 : 5); kind++)
             for (int k = 0; k <= 50; k++)
             {
                 var sample = new MotionSample(1 - k / 50f, k / 50f);
                 var side = Vector3.Transform(Vector3.UnitX, Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 72 * InspectMotion.GripRollWeight(sample) * MathF.PI / 180));
                 var target = kind == 0 ? InspectMotion.ThumbTarget(native[3], native[0], Vector3.Zero, Vector3.UnitZ, side, .009427f, 72, sample) : InspectMotion.FingerTarget(native[3], Vector3.Zero, Vector3.UnitZ, 72, sample, kind);
-                var pose = InspectMotion.PoseFinger(native, rotations, target, kind == 0);
+                var pose = InspectMotion.PoseFinger(native, rotations, target, kind == 0, solvedPoints, solvedRotations);
                 if (kind == 0 && sample.UprightA >= .32f)
                 {
                     Check(Math.Abs(Vector3.Dot(pose.Points[3], side)) - .009427f > .008f, "Posed thumb retains side clearance after applying joint limits");
@@ -476,11 +481,22 @@ internal sealed class KnifeMotionTests
                 {
                     var movedPoints = Array.ConvertAll(native, p => worldOrigin + Vector3.Transform(p, worldQ));
                     var movedRotations = Array.ConvertAll(rotations, q => worldQ * q);
-                    var moved = InspectMotion.PoseFinger(movedPoints, movedRotations, worldOrigin + Vector3.Transform(target, worldQ), kind == 0);
+                    var moved = InspectMotion.PoseFinger(movedPoints, movedRotations, worldOrigin + Vector3.Transform(target, worldQ), kind == 0, transformedPoints, transformedRotations);
                     Check(Vector3.Distance(moved.Points[3], worldOrigin + Vector3.Transform(pose.Points[3], worldQ)) < .00005f, "Finger solver follows camera heading");
                 }
             }
 
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        float accumulatedError = 0;
+        for (int iteration = 0; iteration < 2048; iteration++)
+        {
+            var pose = InspectMotion.PoseFinger(native, rotations, native[3] + new Vector3(.01f, 0, 0), iteration % 5 == 0, solvedPoints, solvedRotations);
+            accumulatedError += pose.TargetError;
+        }
+
+        fingerSolverAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        Check(fingerSolverAllocatedBytes == 0, "Finger solving allocates no managed memory after warmup");
+        Check(float.IsFinite(accumulatedError), "Repeated finger solving remains finite");
         Console.WriteLine($"Synthetic fingers: maximum contact error={maxError * 1000:F2}mm; proximal adjustment={maxRoot:F1} degrees.");
     }
 }
